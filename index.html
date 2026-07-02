@@ -449,6 +449,21 @@
             to { opacity: 1; }
         }
 
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+
         @media (max-width: 768px) {
             .two-columns {
                 grid-template-columns: 1fr;
@@ -491,16 +506,19 @@
                 <div class="amount" id="daysTracked">0</div>
             </div>
             <div class="summary-card planned">
-                <label>Planned Today</label>
-                <div class="amount" id="plannedToday">0</div>
+                <label>Planned</label>
+                <div class="amount" id="plannedCount">0</div>
             </div>
             <div class="summary-card accomplished">
-                <label>Accomplished Today</label>
-                <div class="amount" id="accomplishedToday">0</div>
+                <label>Accomplished</label>
+                <div class="amount" id="accomplishedCount">0</div>
             </div>
             <div class="summary-card rate">
                 <label>Completion Rate</label>
                 <div class="amount" id="completionRate">0%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                </div>
             </div>
         </div>
 
@@ -521,7 +539,7 @@
                 <div class="two-columns">
                     <!-- PLANNED SECTION -->
                     <div class="section planned">
-                        <h2>🎯 Planned for Today</h2>
+                        <h2>🎯 Planned</h2>
                         <div class="input-group">
                             <input 
                                 type="text" 
@@ -536,7 +554,7 @@
 
                     <!-- ACCOMPLISHED SECTION -->
                     <div class="section accomplished">
-                        <h2>✅ Actually Accomplished</h2>
+                        <h2>✅ Accomplished</h2>
                         <div class="input-group">
                             <input 
                                 type="text" 
@@ -592,12 +610,12 @@
 
     <script>
         let data = {};
-        let currentViewDate = null;
+        let viewingDate = null;
 
         function initApp() {
             loadData();
-            updateDisplay();
             populateDaySelector();
+            updateDashboard();
             renderWeekly();
             renderMonthly();
         }
@@ -620,19 +638,7 @@
 
         function saveData() {
             localStorage.setItem('goCharmGoData', JSON.stringify(data));
-            updateDisplay();
-        }
-
-        function getTodayData() {
-            const today = getTodayKey();
-            if (!data[today]) {
-                data[today] = {
-                    date: today,
-                    planned: [],
-                    accomplished: []
-                };
-            }
-            return data[today];
+            updateDashboard();
         }
 
         function getDateData(dateKey) {
@@ -651,8 +657,9 @@
             const text = input.value.trim();
             if (!text) return;
 
-            const today = getTodayData();
-            today.planned.push({
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            dayData.planned.push({
                 id: Date.now(),
                 text: text,
                 done: false
@@ -661,6 +668,7 @@
             saveData();
             input.value = '';
             input.focus();
+            renderTodayPlanned();
         }
 
         function addAccomplished() {
@@ -668,8 +676,9 @@
             const text = input.value.trim();
             if (!text) return;
 
-            const today = getTodayData();
-            today.accomplished.push({
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            dayData.accomplished.push({
                 id: Date.now(),
                 text: text
             });
@@ -677,38 +686,45 @@
             saveData();
             input.value = '';
             input.focus();
+            renderTodayAccomplished();
         }
 
         function togglePlanned(id) {
-            const today = getTodayData();
-            const item = today.planned.find(p => p.id === id);
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            const item = dayData.planned.find(p => p.id === id);
             if (item) {
                 item.done = !item.done;
                 saveData();
+                renderTodayPlanned();
             }
         }
 
         function deletePlanned(id) {
-            const today = getTodayData();
-            today.planned = today.planned.filter(p => p.id !== id);
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            dayData.planned = dayData.planned.filter(p => p.id !== id);
             saveData();
+            renderTodayPlanned();
         }
 
         function deleteAccomplished(id) {
-            const today = getTodayData();
-            today.accomplished = today.accomplished.filter(a => a.id !== id);
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            dayData.accomplished = dayData.accomplished.filter(a => a.id !== id);
             saveData();
+            renderTodayAccomplished();
         }
 
-        function updateDisplay() {
-            const today = getTodayData();
-
-            // Planned List
+        function renderTodayPlanned() {
+            const today = getTodayKey();
+            const dayData = getDateData(today);
             const plannedList = document.getElementById('plannedList');
-            if (today.planned.length === 0) {
+
+            if (dayData.planned.length === 0) {
                 plannedList.innerHTML = '<div class="empty-state">No plans yet. Add one above!</div>';
             } else {
-                plannedList.innerHTML = today.planned.map(item => `
+                plannedList.innerHTML = dayData.planned.map(item => `
                     <div class="item ${item.done ? 'done' : ''}">
                         <input type="checkbox" ${item.done ? 'checked' : ''} onchange="togglePlanned(${item.id})">
                         <span class="item-text">${escapeHtml(item.text)}</span>
@@ -716,29 +732,45 @@
                     </div>
                 `).join('');
             }
+        }
 
-            // Accomplished List
+        function renderTodayAccomplished() {
+            const today = getTodayKey();
+            const dayData = getDateData(today);
             const accomplishedList = document.getElementById('accomplishedList');
-            if (today.accomplished.length === 0) {
+
+            if (dayData.accomplished.length === 0) {
                 accomplishedList.innerHTML = '<div class="empty-state">Nothing yet. Add what you accomplished!</div>';
             } else {
-                accomplishedList.innerHTML = today.accomplished.map(item => `
+                accomplishedList.innerHTML = dayData.accomplished.map(item => `
                     <div class="item done">
                         <span class="item-text">✓ ${escapeHtml(item.text)}</span>
                         <button class="btn-danger" onclick="deleteAccomplished(${item.id})">Delete</button>
                     </div>
                 `).join('');
             }
+        }
 
-            // Update Stats
-            const plannedCount = today.planned.length;
-            const doneCount = today.planned.filter(p => p.done).length;
+        function updateDashboard() {
+            const displayDate = viewingDate || getTodayKey();
+            const dayData = getDateData(displayDate);
+
+            const plannedCount = dayData.planned.length;
+            const accomplishedCount = dayData.accomplished.length;
+            const doneCount = dayData.planned.filter(p => p.done).length;
             const rate = plannedCount > 0 ? Math.round((doneCount / plannedCount) * 100) : 0;
 
-            document.getElementById('plannedToday').textContent = plannedCount;
-            document.getElementById('accomplishedToday').textContent = today.accomplished.length;
-            document.getElementById('completionRate').textContent = rate + '%';
             document.getElementById('daysTracked').textContent = Object.keys(data).length;
+            document.getElementById('plannedCount').textContent = plannedCount;
+            document.getElementById('accomplishedCount').textContent = accomplishedCount;
+            document.getElementById('completionRate').textContent = rate + '%';
+            document.getElementById('progressBar').style.width = rate + '%';
+
+            // Only render today's lists
+            if (!viewingDate) {
+                renderTodayPlanned();
+                renderTodayAccomplished();
+            }
         }
 
         function populateDaySelector() {
@@ -758,10 +790,13 @@
             const dateKey = selector.value;
             
             if (!dateKey) {
+                viewingDate = null;
                 document.getElementById('pastDayView').innerHTML = '';
+                updateDashboard();
                 return;
             }
 
+            viewingDate = dateKey;
             const dayData = getDateData(dateKey);
             const formatted = formatDate(new Date(dateKey + 'T00:00:00'));
 
@@ -799,6 +834,7 @@
             html += `</div></div></div>`;
 
             document.getElementById('pastDayView').innerHTML = html;
+            updateDashboard();
         }
 
         function renderWeekly() {
@@ -810,7 +846,16 @@
             }
 
             const grid = weekDates.map(date => {
-                const dayData = getDateData(date);
+                const dayData = data[date];
+                if (!dayData) {
+                    return `
+                        <div class="day-card">
+                            <h4>${formatDate(new Date(date + 'T00:00:00'))}</h4>
+                            <div class="completion">-</div>
+                            <div class="ratio">No data</div>
+                        </div>
+                    `;
+                }
                 const doneCount = dayData.planned.filter(p => p.done).length;
                 const plannedCount = dayData.planned.length;
                 const rate = plannedCount > 0 ? Math.round((doneCount / plannedCount) * 100) : 0;
@@ -838,9 +883,11 @@
             let totalDone = 0;
 
             dates.forEach(date => {
-                const dayData = getDateData(date);
-                totalPlanned += dayData.planned.length;
-                totalDone += dayData.planned.filter(p => p.done).length;
+                const dayData = data[date];
+                if (dayData) {
+                    totalPlanned += dayData.planned.length;
+                    totalDone += dayData.planned.filter(p => p.done).length;
+                }
             });
 
             const completionRate = totalPlanned > 0 ? Math.round((totalDone / totalPlanned) * 100) : 0;
@@ -898,7 +945,6 @@
 
                 const imported = JSON.parse(code);
 
-                // Merge data
                 Object.keys(imported).forEach(date => {
                     if (!data[date]) {
                         data[date] = imported[date];
@@ -908,14 +954,15 @@
                     }
                 });
 
-                saveData();
+                localStorage.setItem('goCharmGoData', JSON.stringify(data));
                 populateDaySelector();
+                updateDashboard();
                 renderWeekly();
                 renderMonthly();
                 closeImportModal();
                 alert('✅ Data imported successfully!');
             } catch (e) {
-                alert('❌ Error: Invalid JSON format. Make sure you copied the entire code block.');
+                alert('❌ Error: Invalid JSON format.');
             }
         }
 
