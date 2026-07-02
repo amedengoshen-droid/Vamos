@@ -187,6 +187,24 @@
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
+        .btn-orange {
+            background: #f59e0b;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-orange:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
         .btn-danger {
             background: #ef4444;
             color: white;
@@ -219,6 +237,10 @@
 
         .section.accomplished h2 {
             color: #10b981;
+        }
+
+        .section.unplanned h2 {
+            color: #f59e0b;
         }
 
         .input-group {
@@ -493,7 +515,7 @@
         }
     </style>
 </head>
-<body>
+<body onload="initApp()">
     <div class="container">
         <div class="header">
             <h1>✨ GoCharm Go</h1>
@@ -523,9 +545,9 @@
         </div>
 
         <div class="nav-tabs">
-            <button class="active" onclick="switchTab('daily')">📅 Daily</button>
-            <button onclick="switchTab('weekly')">📈 Weekly</button>
-            <button onclick="switchTab('monthly')">📊 Monthly</button>
+            <button id="tab-daily" class="active" onclick="switchTab('daily')">📅 Daily</button>
+            <button id="tab-weekly" onclick="switchTab('weekly')">📈 Weekly</button>
+            <button id="tab-monthly" onclick="switchTab('monthly')">📊 Monthly</button>
         </div>
 
         <div class="content">
@@ -552,19 +574,37 @@
                         <div id="plannedList"></div>
                     </div>
 
-                    <!-- ACCOMPLISHED SECTION -->
-                    <div class="section accomplished">
-                        <h2>✅ Accomplished</h2>
-                        <div class="input-group">
-                            <input 
-                                type="text" 
-                                id="accomplishedInput" 
-                                placeholder="What did you accomplish?"
-                                onkeypress="if(event.key==='Enter') addAccomplished()"
-                            >
-                            <button class="btn-secondary" onclick="addAccomplished()">Add</button>
+                    <!-- ACCOMPLISHED COLUMNS (Main & Unplanned) -->
+                    <div>
+                        <!-- ACCOMPLISHED SECTION -->
+                        <div class="section accomplished">
+                            <h2>✅ Accomplished</h2>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    id="accomplishedInput" 
+                                    placeholder="What did you accomplish?"
+                                    onkeypress="if(event.key==='Enter') addAccomplished()"
+                                >
+                                <button class="btn-secondary" onclick="addAccomplished()">Add</button>
+                            </div>
+                            <div id="accomplishedList"></div>
                         </div>
-                        <div id="accomplishedList"></div>
+
+                        <!-- UNPLANNED ACCOMPLISHED SECTION -->
+                        <div class="section unplanned">
+                            <h2>⚡ Unplanned Accomplished</h2>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    id="unplannedInput" 
+                                    placeholder="Any unexpected wins today?"
+                                    onkeypress="if(event.key==='Enter') addUnplannedAccomplished()"
+                                >
+                                <button class="btn-orange" onclick="addUnplannedAccomplished()">Add</button>
+                            </div>
+                            <div id="unplannedList"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -610,12 +650,14 @@
 
     <script>
         let data = {};
-        let viewingDate = null;
 
         function initApp() {
             loadData();
-            populateDaySelector();
             updateDashboard();
+            renderTodayPlanned();
+            renderTodayAccomplished();
+            renderTodayUnplanned();
+            populateDaySelector();
             renderWeekly();
             renderMonthly();
         }
@@ -639,6 +681,9 @@
         function saveData() {
             localStorage.setItem('goCharmGoData', JSON.stringify(data));
             updateDashboard();
+            populateDaySelector();
+            renderWeekly();
+            renderMonthly();
         }
 
         function getDateData(dateKey) {
@@ -646,8 +691,12 @@
                 data[dateKey] = {
                     date: dateKey,
                     planned: [],
-                    accomplished: []
+                    accomplished: [],
+                    unplanned_accomplished: []
                 };
+            }
+            if (!data[dateKey].unplanned_accomplished) {
+                data[dateKey].unplanned_accomplished = [];
             }
             return data[dateKey];
         }
@@ -689,6 +738,24 @@
             renderTodayAccomplished();
         }
 
+        function addUnplannedAccomplished() {
+            const input = document.getElementById('unplannedInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            dayData.unplanned_accomplished.push({
+                id: Date.now(),
+                text: text
+            });
+
+            saveData();
+            input.value = '';
+            input.focus();
+            renderTodayUnplanned();
+        }
+
         function togglePlanned(id) {
             const today = getTodayKey();
             const dayData = getDateData(today);
@@ -716,218 +783,240 @@
             renderTodayAccomplished();
         }
 
+        function deleteUnplanned(id) {
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            dayData.unplanned_accomplished = dayData.unplanned_accomplished.filter(u => u.id !== id);
+            saveData();
+            renderTodayUnplanned();
+        }
+
         function renderTodayPlanned() {
             const today = getTodayKey();
             const dayData = getDateData(today);
-            const plannedList = document.getElementById('plannedList');
+            const listEl = document.getElementById('plannedList');
 
             if (dayData.planned.length === 0) {
-                plannedList.innerHTML = '<div class="empty-state">No plans yet. Add one above!</div>';
-            } else {
-                plannedList.innerHTML = dayData.planned.map(item => `
-                    <div class="item ${item.done ? 'done' : ''}">
-                        <input type="checkbox" ${item.done ? 'checked' : ''} onchange="togglePlanned(${item.id})">
-                        <span class="item-text">${escapeHtml(item.text)}</span>
-                        <button class="btn-danger" onclick="deletePlanned(${item.id})">Delete</button>
-                    </div>
-                `).join('');
+                listEl.innerHTML = '<div class="empty-state">No planned tasks for today yet.</div>';
+                return;
             }
+
+            listEl.innerHTML = dayData.planned.map(item => `
+                <div class="item ${item.done ? 'done' : ''}">
+                    <input type="checkbox" ${item.done ? 'checked' : ''} onclick="togglePlanned(${item.id})">
+                    <span class="item-text">${item.text}</span>
+                    <button class="btn-danger" onclick="deletePlanned(${item.id})">Delete</button>
+                </div>
+            `).join('');
         }
 
         function renderTodayAccomplished() {
             const today = getTodayKey();
             const dayData = getDateData(today);
-            const accomplishedList = document.getElementById('accomplishedList');
+            const listEl = document.getElementById('accomplishedList');
 
             if (dayData.accomplished.length === 0) {
-                accomplishedList.innerHTML = '<div class="empty-state">Nothing yet. Add what you accomplished!</div>';
-            } else {
-                accomplishedList.innerHTML = dayData.accomplished.map(item => `
-                    <div class="item done">
-                        <span class="item-text">✓ ${escapeHtml(item.text)}</span>
-                        <button class="btn-danger" onclick="deleteAccomplished(${item.id})">Delete</button>
-                    </div>
-                `).join('');
+                listEl.innerHTML = '<div class="empty-state">No accomplishments added yet.</div>';
+                return;
             }
+
+            listEl.innerHTML = dayData.accomplished.map(item => `
+                <div class="item">
+                    <span class="item-text">✨ ${item.text}</span>
+                    <button class="btn-danger" onclick="deleteAccomplished(${item.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        function renderTodayUnplanned() {
+            const today = getTodayKey();
+            const dayData = getDateData(today);
+            const listEl = document.getElementById('unplannedList');
+
+            if (dayData.unplanned_accomplished.length === 0) {
+                listEl.innerHTML = '<div class="empty-state">No unplanned wins logged today.</div>';
+                return;
+            }
+
+            listEl.innerHTML = dayData.unplanned_accomplished.map(item => `
+                <div class="item" style="border-left: 4px solid #f59e0b;">
+                    <span class="item-text">⚡ ${item.text}</span>
+                    <button class="btn-danger" onclick="deleteUnplanned(${item.id})">Delete</button>
+                </div>
+            `).join('');
         }
 
         function updateDashboard() {
-            const displayDate = viewingDate || getTodayKey();
-            const dayData = getDateData(displayDate);
+            const keys = Object.keys(data);
+            document.getElementById('daysTracked').innerText = keys.length;
 
-            const plannedCount = dayData.planned.length;
-            const accomplishedCount = dayData.accomplished.length;
-            const doneCount = dayData.planned.filter(p => p.done).length;
-            const rate = plannedCount > 0 ? Math.round((doneCount / plannedCount) * 100) : 0;
+            let totalPlanned = 0;
+            let totalAccomplished = 0;
 
-            document.getElementById('daysTracked').textContent = Object.keys(data).length;
-            document.getElementById('plannedCount').textContent = plannedCount;
-            document.getElementById('accomplishedCount').textContent = accomplishedCount;
-            document.getElementById('completionRate').textContent = rate + '%';
-            document.getElementById('progressBar').style.width = rate + '%';
+            keys.forEach(key => {
+                const day = data[key];
+                totalPlanned += (day.planned || []).length;
+                totalAccomplished += (day.accomplished || []).length + ((day.unplanned_accomplished || []).length);
+            });
 
-            // Only render today's lists
-            if (!viewingDate) {
-                renderTodayPlanned();
-                renderTodayAccomplished();
+            document.getElementById('plannedCount').innerText = totalPlanned;
+            document.getElementById('accomplishedCount').innerText = totalAccomplished;
+
+            let rate = 0;
+            if (totalPlanned > 0) {
+                rate = Math.round((totalAccomplished / totalPlanned) * 100);
+            } else if (totalAccomplished > 0) {
+                rate = 100; 
             }
+
+            document.getElementById('completionRate').innerText = rate + '%';
+            document.getElementById('progressBar').style.width = Math.min(rate, 100) + '%';
         }
 
         function populateDaySelector() {
             const selector = document.getElementById('daySelector');
-            const dates = Object.keys(data).sort().reverse();
-            
-            const options = dates.map(date => {
-                const formatted = formatDate(new Date(date + 'T00:00:00'));
-                return `<option value="${date}">${formatted}</option>`;
-            }).join('');
+            const currentSelection = selector.value;
+            selector.innerHTML = '<option value="">-- Choose a date --</option>';
 
-            selector.innerHTML = '<option value="">-- Choose a date --</option>' + options;
+            Object.keys(data).sort().reverse().forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.text = key;
+                selector.appendChild(option);
+            });
+
+            selector.value = currentSelection;
         }
 
         function viewPastDay() {
-            const selector = document.getElementById('daySelector');
-            const dateKey = selector.value;
-            
-            if (!dateKey) {
-                viewingDate = null;
-                document.getElementById('pastDayView').innerHTML = '';
-                updateDashboard();
+            const dateKey = document.getElementById('daySelector').value;
+            const viewEl = document.getElementById('pastDayView');
+
+            if (!dateKey || !data[dateKey]) {
+                viewEl.innerHTML = '';
                 return;
             }
 
-            viewingDate = dateKey;
-            const dayData = getDateData(dateKey);
-            const formatted = formatDate(new Date(dateKey + 'T00:00:00'));
+            const day = data[dateKey];
+            let plannedHtml = (day.planned || []).map(item => `
+                <div style="margin: 5px 0; color: ${item.done ? '#999' : '#333'}; text-decoration: ${item.done ? 'line-through' : 'none'}">
+                    ${item.done ? '☑️' : '⬜'} ${item.text}
+                </div>
+            `).join('') || '<p style="color:#999">None</p>';
 
-            let html = `<div class="past-day-view">`;
-            html += `<h3 style="margin-bottom: 20px; color: #333;">${formatted}</h3>`;
-            html += `<div class="two-columns">`;
-            
-            // Planned
-            html += `<div><h4 style="color: #3b82f6; margin-bottom: 15px;">🎯 Planned</h4>`;
-            if (dayData.planned.length === 0) {
-                html += '<p style="color: #999;">No planned items</p>';
-            } else {
-                html += dayData.planned.map(item => `
-                    <div class="item ${item.done ? 'done' : ''}">
-                        <span style="width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8em;">
-                            ${item.done ? '✓' : '○'}
-                        </span>
-                        <span class="item-text">${escapeHtml(item.text)}</span>
+            let accomplishedHtml = (day.accomplished || []).map(item => `
+                <div style="margin: 5px 0; color: #10b981;">✨ ${item.text}</div>
+            `).join('') || '<p style="color:#999">None</p>';
+
+            let unplannedHtml = (day.unplanned_accomplished || []).map(item => `
+                <div style="margin: 5px 0; color: #f59e0b;">⚡ ${item.text}</div>
+            `).join('') || '<p style="color:#999">None</p>';
+
+            viewEl.innerHTML = `
+                <div class="past-day-view">
+                    <h3>Data for ${dateKey}</h3>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-top:15px;">
+                        <div>
+                            <h4 style="color:#3b82f6; margin-bottom:8px;">🎯 Planned Tasks</h4>
+                            ${plannedHtml}
+                        </div>
+                        <div>
+                            <h4 style="color:#10b981; margin-bottom:8px;">✅ Accomplished</h4>
+                            ${accomplishedHtml}
+                        </div>
+                        <div>
+                            <h4 style="color:#f59e0b; margin-bottom:8px;">⚡ Unplanned Wins</h4>
+                            ${unplannedHtml}
+                        </div>
                     </div>
-                `).join('');
-            }
-            html += `</div>`;
+                </div>
+            `;
+        }
 
-            // Accomplished
-            html += `<div><h4 style="color: #10b981; margin-bottom: 15px;">✅ Accomplished</h4>`;
-            if (dayData.accomplished.length === 0) {
-                html += '<p style="color: #999;">Nothing accomplished</p>';
-            } else {
-                html += dayData.accomplished.map(item => `
-                    <div class="item done">
-                        <span class="item-text">✓ ${escapeHtml(item.text)}</span>
-                    </div>
-                `).join('');
-            }
-            html += `</div></div></div>`;
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
 
-            document.getElementById('pastDayView').innerHTML = html;
-            updateDashboard();
+            if (tab === 'daily') {
+                document.getElementById('dailyTab').style.display = 'block';
+                document.getElementById('tab-daily').classList.add('active');
+            } else if (tab === 'weekly') {
+                document.getElementById('weeklyTab').style.display = 'block';
+                document.getElementById('tab-weekly').classList.add('active');
+                renderWeekly();
+            } else if (tab === 'monthly') {
+                document.getElementById('monthlyTab').style.display = 'block';
+                document.getElementById('tab-monthly').classList.add('active');
+                renderMonthly();
+            }
         }
 
         function renderWeekly() {
-            const weekDates = [];
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                weekDates.push(d.toISOString().split('T')[0]);
+            const gridEl = document.getElementById('weekGrid');
+            const sortedKeys = Object.keys(data).sort().slice(-7);
+
+            if (sortedKeys.length === 0) {
+                gridEl.innerHTML = '<div class="empty-state">Log data to check your weekly analytics.</div>';
+                return;
             }
 
-            const grid = weekDates.map(date => {
-                const dayData = data[date];
-                if (!dayData) {
-                    return `
-                        <div class="day-card">
-                            <h4>${formatDate(new Date(date + 'T00:00:00'))}</h4>
-                            <div class="completion">-</div>
-                            <div class="ratio">No data</div>
-                        </div>
-                    `;
-                }
-                const doneCount = dayData.planned.filter(p => p.done).length;
-                const plannedCount = dayData.planned.length;
-                const rate = plannedCount > 0 ? Math.round((doneCount / plannedCount) * 100) : 0;
+            gridEl.innerHTML = sortedKeys.map(key => {
+                const day = data[key];
+                const totalP = (day.planned || []).length;
+                const totalA = (day.accomplished || []).length + ((day.unplanned_accomplished || []).length);
+                const rate = totalP > 0 ? Math.round((totalA / totalP) * 100) : (totalA > 0 ? 100 : 0);
 
                 return `
                     <div class="day-card">
-                        <h4>${formatDate(new Date(date + 'T00:00:00'))}</h4>
+                        <h4>${key}</h4>
                         <div class="completion">${rate}%</div>
-                        <div class="ratio">${doneCount}/${plannedCount}</div>
+                        <div class="ratio">${totalA}/${totalP} Done</div>
                     </div>
                 `;
             }).join('');
-
-            document.getElementById('weekGrid').innerHTML = grid;
         }
 
         function renderMonthly() {
-            const today = new Date();
-            const dates = Object.keys(data).filter(d => {
-                const dDate = new Date(d + 'T00:00:00');
-                return dDate.getMonth() === today.getMonth() && dDate.getFullYear() === today.getFullYear();
-            });
+            const insightsEl = document.getElementById('monthlyInsights');
+            const keys = Object.keys(data);
+
+            if (keys.length === 0) {
+                insightsEl.innerHTML = '<div class="empty-state">Log data to view month-long trends.</div>';
+                return;
+            }
 
             let totalPlanned = 0;
-            let totalDone = 0;
+            let totalAccomplished = 0;
+            let totalUnplanned = 0;
 
-            dates.forEach(date => {
-                const dayData = data[date];
-                if (dayData) {
-                    totalPlanned += dayData.planned.length;
-                    totalDone += dayData.planned.filter(p => p.done).length;
-                }
+            keys.forEach(key => {
+                const day = data[key];
+                totalPlanned += (day.planned || []).length;
+                totalAccomplished += (day.accomplished || []).length;
+                totalUnplanned += (day.unplanned_accomplished || []).length;
             });
 
-            const completionRate = totalPlanned > 0 ? Math.round((totalDone / totalPlanned) * 100) : 0;
+            const overallWins = totalAccomplished + totalUnplanned;
+            const avgCompletion = totalPlanned > 0 ? Math.round((overallWins / totalPlanned) * 100) : 0;
 
-            const html = `
+            insightsEl.innerHTML = `
                 <div class="insight-card">
-                    <h4>Total Planned</h4>
-                    <div class="value">${totalPlanned}</div>
+                    <h4>Avg Month Rate</h4>
+                    <div class="value">${avgCompletion}%</div>
                 </div>
-                <div class="insight-card">
-                    <h4>Total Done</h4>
-                    <div class="value">${totalDone}</div>
+                <div class="insight-card" style="border-left-color: #10b981;">
+                    <h4>Total Planned Done</h4>
+                    <div class="value">${totalAccomplished}</div>
                 </div>
-                <div class="insight-card">
-                    <h4>Completion Rate</h4>
-                    <div class="value">${completionRate}%</div>
-                </div>
-                <div class="insight-card">
-                    <h4>Days with Entries</h4>
-                    <div class="value">${dates.length}</div>
+                <div class="insight-card" style="border-left-color: #f59e0b;">
+                    <h4>Total Unplanned Wins</h4>
+                    <div class="value">${totalUnplanned}</div>
                 </div>
             `;
-
-            document.getElementById('monthlyInsights').innerHTML = html;
-        }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
-            document.getElementById(tabName + 'Tab').style.display = 'block';
-            
-            document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-
-            if (tabName === 'weekly') renderWeekly();
-            if (tabName === 'monthly') renderMonthly();
         }
 
         function openImportModal() {
             document.getElementById('importModal').classList.add('active');
-            document.getElementById('importData').focus();
         }
 
         function closeImportModal() {
@@ -936,64 +1025,43 @@
         }
 
         function importData() {
+            const raw = document.getElementById('importData').value.trim();
+            if (!raw) return;
+
             try {
-                const code = document.getElementById('importData').value.trim();
-                if (!code) {
-                    alert('Please paste data first');
-                    return;
+                const parsed = JSON.parse(raw);
+                if (typeof parsed === 'object' && parsed !== null) {
+                    Object.keys(parsed).forEach(dateKey => {
+                        data[dateKey] = parsed[dateKey];
+                        if (!data[dateKey].unplanned_accomplished) {
+                            data[dateKey].unplanned_accomplished = [];
+                        }
+                    });
+                    saveData();
+                    initApp();
+                    closeImportModal();
+                    alert('Data loaded successfully!');
                 }
-
-                const imported = JSON.parse(code);
-
-                Object.keys(imported).forEach(date => {
-                    if (!data[date]) {
-                        data[date] = imported[date];
-                    } else {
-                        data[date].planned = [...(data[date].planned || []), ...(imported[date].planned || [])];
-                        data[date].accomplished = [...(data[date].accomplished || []), ...(imported[date].accomplished || [])];
-                    }
-                });
-
-                localStorage.setItem('goCharmGoData', JSON.stringify(data));
-                populateDaySelector();
-                updateDashboard();
-                renderWeekly();
-                renderMonthly();
-                closeImportModal();
-                alert('✅ Data imported successfully!');
             } catch (e) {
-                alert('❌ Error: Invalid JSON format.');
+                alert('Invalid JSON structure. Verify format and retry.');
             }
         }
 
         function downloadData() {
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `GoCharmGo-${getTodayKey()}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            if (Object.keys(data).length === 0) {
+                alert('No tracking data found to export.');
+                return;
+            }
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gocharm_go_backup_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
-
-        function formatDate(date) {
-            return date.toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric'
-            });
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        window.addEventListener('load', initApp);
     </script>
 </body>
 </html>
