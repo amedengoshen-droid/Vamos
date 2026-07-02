@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoCharm Go - Daily Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            font-size: 0.95em;
+            opacity: 0.9;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .summary-card.days {
+            border-left-color: #667eea;
+        }
+
+        .summary-card.planned {
+            border-left-color: #3b82f6;
+        }
+
+        .summary-card.accomplished {
+            border-left-color: #10b981;
+        }
+
+        .summary-card.rate {
+            border-left-color: #f59e0b;
+        }
+
+        .summary-card label {
+            display: block;
+            font-size: 0.85em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .summary-card .amount {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .summary-card.days .amount {
+            color: #667eea;
+        }
+
+        .summary-card.planned .amount {
+            color: #3b82f6;
+        }
+
+        .summary-card.accomplished .amount {
+            color: #10b981;
+        }
+
+        .summary-card.rate .amount {
+            color: #f59e0b;
+        }
+
+        .nav-tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+
+        .nav-tabs button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1em;
+            color: #666;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-tabs button.active {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            background: white;
+        }
+
+        .nav-tabs button:hover {
+            color: #667eea;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .import-export {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .section.planned h2 {
+            color: #3b82f6;
+        }
+
+        .section.accomplished h2 {
+            color: #10b981;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #3b82f6;
+            flex-shrink: 0;
+        }
+
+        .item-text {
+            flex: 1;
+            color: #333;
+        }
+
+        .item.done {
+            background: #e8f5e9;
+        }
+
+        .item.done .item-text {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.95em;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            resize: vertical;
+            min-height: 150px;
+            margin-bottom: 10px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-content p {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .day-selector {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .day-selector label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .day-selector select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .past-day-view {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .day-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            text-align: center;
+        }
+
+        .day-card h4 {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .day-card .completion {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .day-card .ratio {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .insights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .insight-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .insight-card h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .insight-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .tab-content {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .two-columns {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .summary {
+                grid-template-columns: 1fr;
+            }
+
+            .week-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
+
+            .nav-tabs {
+                flex-wrap: wrap;
+            }
+
+            .nav-tabs button {
+                flex: 0 1 auto;
+                padding: 12px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✨ GoCharm Go</h1>
+            <p>Plan → Track → Accomplish</p>
+        </div>
+
+        <div class="summary">
+            <div class="summary-card days">
+                <label>Days Tracked</label>
+                <div class="amount" id="daysTracked">0</div>
+            </div>
+            <div class="summary-card planned">
+                <label>Planned Today</label>
+                <div class="amount" id="plannedToday">0</div>
+            </div>
+            <div class="summary-card accomplished">
+                <label>Accomplished Today</label>
+                <div class="amount" id="accomplishedToday">0</div>
+            </div>
+            <div class="summary-card rate">
+                <label>Completion Rate</label>
+                <div class="amount" id="completionRate">0%</div>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="active" onclick="switchTab('daily')">📅 Daily</button>
+            <button onclick="switchTab('weekly')">📈 Weekly</button>
+            <button onclick="switchTab('monthly')">📊 Monthly</button>
+        </div>
+
+        <div class="content">
+            <!-- DAILY TAB -->
+            <div id="dailyTab" class="tab-content">
+                <div class="import-export">
+                    <button class="btn-primary" onclick="openImportModal()">📥 Import Data</button>
+                    <button class="btn-secondary" onclick="downloadData()">⬇️ Download Data</button>
+                </div>
+
+                <div class="two-columns">
+                    <!-- PLANNED SECTION -->
+                    <div class="section planned">
+                        <h2>🎯 Planned for Today</h2>
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                id="plannedInput" 
+                                placeholder="What do you plan to do?"
+                                onkeypress="if(event.key==='Enter') addPlanned()"
+                            >
+                            <button class="btn-primary" onclick="addPlanned()">Add</button>
+                        </div>
+                        <div id="plannedList"></div>
+                    </div>
+
+                    <!-- ACCOMPLISHED SECTION -->
+                    <div class="section accomplished">
+                        <h2>✅ Actually Accomplished</h2>
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                id="accomplishedInput" 
+                                placeholder="What did you accomplish?"
+                                onkeypress="if(event.key==='Enter') addAccomplished()"
+                            >
+                            <button class="btn-secondary" onclick="addAccomplished()">Add</button>
+                        </div>
+                        <div id="accomplishedList"></div>
+                    </div>
+                </div>
+
+                <!-- VIEW PAST DAYS -->
+                <div class="section" style="margin-top: 40px;">
+                    <h2>📋 View Past Days</h2>
+                    <div class="day-selector">
+                        <label>Select a date:</label>
+                        <select id="daySelector" onchange="viewPastDay()">
+                            <option value="">-- Choose a date --</option>
+                        </select>
+                    </div>
+                    <div id="pastDayView"></div>
+                </div>
+            </div>
+
+            <!-- WEEKLY TAB -->
+            <div id="weeklyTab" class="tab-content" style="display: none;">
+                <h2 style="margin-bottom: 20px;">📈 Last 7 Days Overview</h2>
+                <div class="week-grid" id="weekGrid"></div>
+            </div>
+
+            <!-- MONTHLY TAB -->
+            <div id="monthlyTab" class="tab-content" style="display: none;">
+                <h2 style="margin-bottom: 20px;">📊 This Month's Insights</h2>
+                <div class="insights" id="monthlyInsights"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMPORT MODAL -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <h3>📥 Import Data</h3>
+            <p>Paste the JSON data code here and click Import:</p>
+            <textarea id="importData" placeholder="Paste your JSON code here..."></textarea>
+            <div class="modal-buttons">
+                <button class="btn-primary" onclick="importData()">Import</button>
+                <button onclick="closeImportModal()" style="padding: 10px 20px; background: #ddd; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let data = {};
+        let currentViewDate = null;
+
+        function initApp() {
+            loadData();
+            updateDisplay();
+            populateDaySelector();
+            renderWeekly();
+            renderMonthly();
+        }
+
+        function getTodayKey() {
+            const today = new Date();
+            return today.toISOString().split('T')[0];
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('goCharmGoData');
+            if (saved) {
+                try {
+                    data = JSON.parse(saved);
+                } catch (e) {
+                    data = {};
+                }
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('goCharmGoData', JSON.stringify(data));
+            updateDisplay();
+        }
+
+        function getTodayData() {
+            const today = getTodayKey();
+            if (!data[today]) {
+                data[today] = {
+                    date: today,
+                    planned: [],
+                    accomplished: []
+                };
+            }
+            return data[today];
+        }
+
+        function getDateData(dateKey) {
+            if (!data[dateKey]) {
+                data[dateKey] = {
+                    date: dateKey,
+                    planned: [],
+                    accomplished: []
+                };
+            }
+            return data[dateKey];
+        }
+
+        function addPlanned() {
+            const input = document.getElementById('plannedInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const today = getTodayData();
+            today.planned.push({
+                id: Date.now(),
+                text: text,
+                done: false
+            });
+
+            saveData();
+            input.value = '';
+            input.focus();
+        }
+
+        function addAccomplished() {
+            const input = document.getElementById('accomplishedInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const today = getTodayData();
+            today.accomplished.push({
+                id: Date.now(),
+                text: text
+            });
+
+            saveData();
+            input.value = '';
+            input.focus();
+        }
+
+        function togglePlanned(id) {
+            const today = getTodayData();
+            const item = today.planned.find(p => p.id === id);
+            if (item) {
+                item.done = !item.done;
+                saveData();
+            }
+        }
+
+        function deletePlanned(id) {
+            const today = getTodayData();
+            today.planned = today.planned.filter(p => p.id !== id);
+            saveData();
+        }
+
+        function deleteAccomplished(id) {
+            const today = getTodayData();
+            today.accomplished = today.accomplished.filter(a => a.id !== id);
+            saveData();
+        }
+
+        function updateDisplay() {
+            const today = getTodayData();
+
+            // Planned List
+            const plannedList = document.getElementById('plannedList');
+            if (today.planned.length === 0) {
+                plannedList.innerHTML = '<div class="empty-state">No plans yet. Add one above!</div>';
+            } else {
+                plannedList.innerHTML = today.planned.map(item => `
+                    <div class="item ${item.done ? 'done' : ''}">
+                        <input type="checkbox" ${item.done ? 'checked' : ''} onchange="togglePlanned(${item.id})">
+                        <span class="item-text">${escapeHtml(item.text)}</span>
+                        <button class="btn-danger" onclick="deletePlanned(${item.id})">Delete</button>
+                    </div>
+                `).join('');
+            }
+
+            // Accomplished List
+            const accomplishedList = document.getElementById('accomplishedList');
+            if (today.accomplished.length === 0) {
+                accomplishedList.innerHTML = '<div class="empty-state">Nothing yet. Add what you accomplished!</div>';
+            } else {
+                accomplishedList.innerHTML = today.accomplished.map(item => `
+                    <div class="item done">
+                        <span class="item-text">✓ ${escapeHtml(item.text)}</span>
+                        <button class="btn-danger" onclick="deleteAccomplished(${item.id})">Delete</button>
+                    </div>
+                `).join('');
+            }
+
+            // Update Stats
+            const plannedCount = today.planned.length;
+            const doneCount = today.planned.filter(p => p.done).length;
+            const rate = plannedCount > 0 ? Math.round((doneCount / plannedCount) * 100) : 0;
+
+            document.getElementById('plannedToday').textContent = plannedCount;
+            document.getElementById('accomplishedToday').textContent = today.accomplished.length;
+            document.getElementById('completionRate').textContent = rate + '%';
+            document.getElementById('daysTracked').textContent = Object.keys(data).length;
+        }
+
+        function populateDaySelector() {
+            const selector = document.getElementById('daySelector');
+            const dates = Object.keys(data).sort().reverse();
+            
+            const options = dates.map(date => {
+                const formatted = formatDate(new Date(date + 'T00:00:00'));
+                return `<option value="${date}">${formatted}</option>`;
+            }).join('');
+
+            selector.innerHTML = '<option value="">-- Choose a date --</option>' + options;
+        }
+
+        function viewPastDay() {
+            const selector = document.getElementById('daySelector');
+            const dateKey = selector.value;
+            
+            if (!dateKey) {
+                document.getElementById('pastDayView').innerHTML = '';
+                return;
+            }
+
+            const dayData = getDateData(dateKey);
+            const formatted = formatDate(new Date(dateKey + 'T00:00:00'));
+
+            let html = `<div class="past-day-view">`;
+            html += `<h3 style="margin-bottom: 20px; color: #333;">${formatted}</h3>`;
+            html += `<div class="two-columns">`;
+            
+            // Planned
+            html += `<div><h4 style="color: #3b82f6; margin-bottom: 15px;">🎯 Planned</h4>`;
+            if (dayData.planned.length === 0) {
+                html += '<p style="color: #999;">No planned items</p>';
+            } else {
+                html += dayData.planned.map(item => `
+                    <div class="item ${item.done ? 'done' : ''}">
+                        <span style="width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8em;">
+                            ${item.done ? '✓' : '○'}
+                        </span>
+                        <span class="item-text">${escapeHtml(item.text)}</span>
+                    </div>
+                `).join('');
+            }
+            html += `</div>`;
+
+            // Accomplished
+            html += `<div><h4 style="color: #10b981; margin-bottom: 15px;">✅ Accomplished</h4>`;
+            if (dayData.accomplished.length === 0) {
+                html += '<p style="color: #999;">Nothing accomplished</p>';
+            } else {
+                html += dayData.accomplished.map(item => `
+                    <div class="item done">
+                        <span class="item-text">✓ ${escapeHtml(item.text)}</span>
+                    </div>
+                `).join('');
+            }
+            html += `</div></div></div>`;
+
+            document.getElementById('pastDayView').innerHTML = html;
+        }
+
+        function renderWeekly() {
+            const weekDates = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                weekDates.push(d.toISOString().split('T')[0]);
+            }
+
+            const grid = weekDates.map(date => {
+                const dayData = getDateData(date);
+                const doneCount = dayData.planned.filter(p => p.done).length;
+                const plannedCount = dayData.planned.length;
+                const rate = plannedCount > 0 ? Math.round((doneCount / plannedCount) * 100) : 0;
+
+                return `
+                    <div class="day-card">
+                        <h4>${formatDate(new Date(date + 'T00:00:00'))}</h4>
+                        <div class="completion">${rate}%</div>
+                        <div class="ratio">${doneCount}/${plannedCount}</div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('weekGrid').innerHTML = grid;
+        }
+
+        function renderMonthly() {
+            const today = new Date();
+            const dates = Object.keys(data).filter(d => {
+                const dDate = new Date(d + 'T00:00:00');
+                return dDate.getMonth() === today.getMonth() && dDate.getFullYear() === today.getFullYear();
+            });
+
+            let totalPlanned = 0;
+            let totalDone = 0;
+
+            dates.forEach(date => {
+                const dayData = getDateData(date);
+                totalPlanned += dayData.planned.length;
+                totalDone += dayData.planned.filter(p => p.done).length;
+            });
+
+            const completionRate = totalPlanned > 0 ? Math.round((totalDone / totalPlanned) * 100) : 0;
+
+            const html = `
+                <div class="insight-card">
+                    <h4>Total Planned</h4>
+                    <div class="value">${totalPlanned}</div>
+                </div>
+                <div class="insight-card">
+                    <h4>Total Done</h4>
+                    <div class="value">${totalDone}</div>
+                </div>
+                <div class="insight-card">
+                    <h4>Completion Rate</h4>
+                    <div class="value">${completionRate}%</div>
+                </div>
+                <div class="insight-card">
+                    <h4>Days with Entries</h4>
+                    <div class="value">${dates.length}</div>
+                </div>
+            `;
+
+            document.getElementById('monthlyInsights').innerHTML = html;
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.getElementById(tabName + 'Tab').style.display = 'block';
+            
+            document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (tabName === 'weekly') renderWeekly();
+            if (tabName === 'monthly') renderMonthly();
+        }
+
+        function openImportModal() {
+            document.getElementById('importModal').classList.add('active');
+            document.getElementById('importData').focus();
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.remove('active');
+            document.getElementById('importData').value = '';
+        }
+
+        function importData() {
+            try {
+                const code = document.getElementById('importData').value.trim();
+                if (!code) {
+                    alert('Please paste data first');
+                    return;
+                }
+
+                const imported = JSON.parse(code);
+
+                // Merge data
+                Object.keys(imported).forEach(date => {
+                    if (!data[date]) {
+                        data[date] = imported[date];
+                    } else {
+                        data[date].planned = [...(data[date].planned || []), ...(imported[date].planned || [])];
+                        data[date].accomplished = [...(data[date].accomplished || []), ...(imported[date].accomplished || [])];
+                    }
+                });
+
+                saveData();
+                populateDaySelector();
+                renderWeekly();
+                renderMonthly();
+                closeImportModal();
+                alert('✅ Data imported successfully!');
+            } catch (e) {
+                alert('❌ Error: Invalid JSON format. Make sure you copied the entire code block.');
+            }
+        }
+
+        function downloadData() {
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `GoCharmGo-${getTodayKey()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        window.addEventListener('load', initApp);
+    </script>
+</body>
+</html>
